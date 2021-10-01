@@ -1,0 +1,71 @@
+formatVersion: 1
+# Input Variables ########################
+inputs:
+  # ----------
+  cpu:
+    type: integer # data type
+    title: vCPUs # variable name
+    default: 2
+    minimum: 1
+    maximum: 8
+  # ----------
+  memoryMB:
+    type: integer # data type
+    title: Memory(MB) # variable name
+    default: 4096
+    minimum: 1024
+    maximum: 16384
+  # ----------
+  disks:
+    type: array # data type
+    title: Additional Disks # variable name
+    items:
+      type: object # data type
+      title: Disk # variable name
+      properties:
+        size:
+          type: integer # data type
+          title: Size(GB) # variable name
+    maxItems: 5 # max number of disks
+############################################
+# Resources Definition #####################
+resources:
+  # ----------
+  Virtual_Machine:
+    type: Cloud.vSphere.Machine
+    properties:
+      resourceGroupName: Demo folder # vCenter folder which the VM will be in
+      image: rhel # VM template image
+      # imageRef: 'https://cloud-images.ubuntu.com/releases/16.04/release-20170307/ubuntu-16.04-server-cloudimg-amd64.ova'
+      cpuCount: '${input.cpu}' # define n of CPUs from input
+      totalMemoryMB: '${input.memoryMB}' # define the memory size from input
+      attachedDisks: '${map_to_object(resource.Virtual_Disk[*].id, "source")}'
+      networks:
+        - network: '${resource.Network1.id}' # Connected to Network1
+          deviceIndex: 0
+          assignment: dynamic # DHCP
+      remoteAccess:
+        authentication: usernamePassword
+        username: Administrator # Remote User
+        password: VMware1! # Remote Password
+      cloudConfig: |
+        #cloud-config
+        runcmd: 
+          - echo "demo test" > /test.txt  # can execute any command
+        set_hostname: testname
+  # ----------
+  Virtual_Disk:
+    type: Cloud.vSphere.Disk
+    allocatePerInstance: true
+    properties:
+      capacityGb: '${input.disks[count.index].size}' # define the disk size from input
+      provisioningType: thin
+      count: '${length(input.disks)}'
+  # ----------
+  Network1:
+    type: Cloud.vSphere.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: vds
+#######################################
